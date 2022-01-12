@@ -1,0 +1,394 @@
+Resources:
+  ProtonCodeBuildRole: # success
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pbr-cds-protonpoc-codebuild-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+
+  ProtonCodeBuildPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: pbr-cds-proton-codebuild-policy
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - "arn:aws:logs:us-east-1:933411321547:log-group:/aws/codebuild/cds-protonpoc-*"
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: BuildProject
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: BuildProject
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/Deploy*Project*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/Deploy*Project:*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                 - ""
+                 - - "arn:"
+                   - Ref: AWS::Partition
+                   - ":codebuild:"
+                   - Ref: AWS::Region
+                   - ":"
+                   - Ref: AWS::AccountId
+                   - :report-group/
+                   - Ref: BuildProject
+                   - -*
+              - Fn::Join:
+                 - ""
+                 - - "arn:"
+                   - Ref: AWS::Partition
+                   - ":codebuild:"
+                   - Ref: AWS::Region
+                   - ":"
+                   - Ref: AWS::AccountId
+                   - :report-group/Deploy*Project
+                   - -*
+          - Action:
+              - proton:GetService
+              - proton:UpdateServiceInstance
+              - proton:GetServiceInstance
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+              - s3:CreateMultipartUpload
+            Effect: Allow
+            Resource:
+              - "arn:aws:s3:::cds-protonpoc-*"
+              - "arn:aws:s3:::cds-protonpoc-*/*"
+        Version: "2012-10-17"
+      Roles:
+        - Ref: ProtonCodeBuildRole
+  PipelineBuildDeployCodePipelineActionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pbr-cds-protonpoc-PipelineBuild-deploy-CodePipelineActionRole
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+  PipelineBuildDeployCodePipelineActionRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: pbr-cds-proton-PipelineBuild-deploy-CodePipelineActionRoleDefaultPolicy
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              - "arn:aws:codebuild:us-east-1:933411321547:project/cds-protonpoc-*"
+              - Fn::GetAtt:
+                 - BuildProject
+                 - Arn
+              - Fn::Join:
+                 - ""
+                 - - "arn:"
+                   - Ref: AWS::Partition
+                   - ":codebuild:"
+                   - Ref: AWS::Region
+                   - ":"
+                   - Ref: AWS::AccountId
+                   - ":project/Deploy*"
+        Version: "2012-10-17"
+      Roles:
+        - Ref: PipelineBuildDeployCodePipelineActionRole
+  PipelineRole: # success
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pbr-cds-protonpoc-pipelinerole
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+
+  PipelineRoleDefaultPolicy: # success
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: pbr-cds-pipelineroledefaultpolicy
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - "arn:aws:s3:::cds-protonpoc-*"
+              - "arn:aws:s3:::cds-protonpoc-*/*"
+          - Action: codestar-connections:*
+            Effect: Allow
+            Resource: "*"
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineBuildDeployCodePipelineActionRole
+                - Arn
+
+        Version: "2012-10-17"
+      Roles:
+        - Ref: PipelineRole
+
+  BuildProject: # success
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: cds-protonpoc-codebuild-project
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+        - Name: bucket_name
+          Type: PLAINTEXT
+          Value: "cds-protonpoc-s3bucket"
+        - Name: service_name
+          Type: PLAINTEXT
+          Value: '{{service.name}}'
+      ServiceRole:
+        Fn::GetAtt:
+          - ProtonCodeBuildRole
+          - Arn
+      Source:
+        BuildSpec: >-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "install": {
+                      "runtime-versions": {{
+                          {"ruby2.7": {"ruby": "2.7"},
+                            "go1.x": {"golang": "1.x"},
+                            "nodejs12.x": {"nodejs": "12.x"},
+                            "python3.8": {"python": "3.8"},
+                            "java11": {"java": "openjdk11.x"},
+                            "dotnetcore3.1": {"dotnet": "3.1"}
+                          }[service_instances[0].outputs.LambdaRuntime] | tojson | safe }},
+                      "commands": [
+                        "pip3 install --upgrade --user awscli",
+                        "echo 'f6bd1536a743ab170b35c94ed4c7c4479763356bd543af5d391122f4af852460  yq_linux_amd64' > yq_linux_amd64.sha",
+                        "wget https://github.com/mikefarah/yq/releases/download/3.4.0/yq_linux_amd64",
+                        "sha256sum -c yq_linux_amd64.sha",
+                        "mv yq_linux_amd64 /usr/bin/yq",
+                        "chmod +x /usr/bin/yq"
+                      ]
+                    },
+                    "pre_build": {
+                      "commands": [
+                        "cd $CODEBUILD_SRC_DIR",
+                        "{{ pipeline.inputs.unit_test_command }}"
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "python_file_uri=s3://$bucket_name/python_lambda_function/lambda_function.py",
+                        "FUNCTION_URI=s3://$bucket_name/$CODEBUILD_BUILD_NUMBER/function.zip",
+                        "aws s3 cp $python_file_uri temp.py",
+                        "zip function.zip temp.py",
+                        "aws s3 cp function.zip $FUNCTION_URI"
+                      ]
+                    },
+                    "post_build": {
+                      "commands": [
+                        "aws proton --region $AWS_DEFAULT_REGION get-service --name $service_name | jq -r .service.spec > service.yaml",
+                        "yq w service.yaml 'instances[*].spec.code_uri' \"$FUNCTION_URI\" > rendered_service.yaml",
+                        "rendered_service_file_location=s3://$bucket_name/rendered_service/rendered_service.yaml",
+                        "aws s3 cp rendered_service.yaml $rendered_service_file_location"
+                      ]
+                    }
+                  },
+                  "artifacts": {
+                    "files": [
+                      "rendered_service.yaml"
+                    ]
+                  }
+                }
+        Type: CODEPIPELINE
+
+{% for service_instance in service_instances %}
+  Deploy{{loop.index}}Project:   # success
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: cds-protonpoc-codebuild-deploy-project-{{loop.index}}
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+        - Name: service_name
+          Type: PLAINTEXT
+          Value:  '{{service.name}}'
+        - Name: service_instance_name
+          Type: PLAINTEXT
+          Value: '{{service_instance.name}}'
+      ServiceRole:
+        Fn::GetAtt:
+          - ProtonCodeBuildRole
+          - Arn
+      Source:
+        BuildSpec: >-
+          {
+            "version": "0.2",
+            "phases": {
+              "build": {
+                "commands": [
+                  "pip3 install --upgrade --user awscli",
+                  "aws proton --region $AWS_DEFAULT_REGION update-service-instance --deployment-type CURRENT_VERSION --name $service_instance_name --service-name $service_name --spec file://rendered_service.yaml",
+                  "aws proton --region $AWS_DEFAULT_REGION wait service-instance-deployed --name $service_instance_name --service-name $service_name"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+{% endfor %}
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: cds-protonpoc-lambdapipeline
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRole
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: "1"
+              Configuration:
+                ConnectionArn: '{{ service.repository_connection_arn }}'
+                FullRepositoryId: '{{ service.repository_id }}'
+                BranchName: '{{ service.branch_name }}'
+              Name: Checkout
+              OutputArtifacts:
+                - Name: Artifact_Source_Checkout
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: BuildProject
+              InputArtifacts:
+                - Name: Artifact_Source_Checkout
+              Name: Build
+              OutputArtifacts:
+                - Name: BuildOutput
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineBuildDeployCodePipelineActionRole
+                  - Arn
+              RunOrder: 1
+          Name: Build {%- for service_instance in service_instances %}
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: Deploy{{loop.index}}Project
+              InputArtifacts:
+                - Name: BuildOutput
+              Name: Deploy
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineBuildDeployCodePipelineActionRole
+                  - Arn
+              RunOrder: 1
+          Name: 'Deploy{{service_instance.name}}'
+{%- endfor %}
+      ArtifactStore:
+        Location: "cds-protonpoc-s3bucket"
+        Type: S3
+    DependsOn:
+      - PipelineRoleDefaultPolicy
+      - PipelineRole
+
+Outputs:
+  PipelineEndpoint:
+    Description: The URL to access the pipeline
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${Pipeline}/view?region=${AWS::Region}"

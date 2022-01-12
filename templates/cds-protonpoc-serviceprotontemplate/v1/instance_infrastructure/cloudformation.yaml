@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Simple lambda function
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+        - PolicyName: allowLambdaLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - logs:*
+              Resource: arn:aws:logs:*:*:*
+        - PolicyName: allowSqs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+              - sqs:ChangeMessageVisibility
+              Resource: !GetAtt MyQueue.Arn
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: cds-proton-lambda_function
+      CodeUri: "{{service_instance.inputs.code_uri}}"
+      Handler: "{{service_instance.inputs.resource_handler}}"
+      Runtime: "{{service_instance.inputs.lambda_runtime}}"
+      Timeout: {{service_instance.inputs.lambda_timeout}}
+      MemorySize: {{service_instance.inputs.lambda_memory}}
+      Role: !GetAtt LambdaExecutionRole.Arn
+  LambdaFunctionEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: true
+      EventSourceArn: !GetAtt MyQueue.Arn
+      FunctionName: !GetAtt LambdaFunction.Arn
+  MyQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 0
+      VisibilityTimeout: 120
+      QueueName: cds-protonpoc-queue
+
+Outputs:
+  LambdaFunctionARN:
+    Description: Lambda function ARN.
+    Value:
+      Fn::GetAtt:
+        - LambdaFunction
+        - Arn
+  LambdaRuntime:
+    Description: "The lambda runtime"
+    Value: "{{service_instance.inputs.lambda_runtime}}"

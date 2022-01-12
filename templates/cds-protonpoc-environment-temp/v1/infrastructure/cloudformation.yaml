@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: This environment holds a simple DDB table shared between services.
+Resources:
+  AppBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      BucketName: "{{ environment.inputs.bucketname }}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+# These output values will be available to service templates to use.
+Outputs:
+  AppBucketArn:
+    Description: The Bucket used for data processing
+    Value: !GetAtt AppBucket.Arn
+  BucketName:
+    Value: "{{ environment.inputs.bucketname }}"
